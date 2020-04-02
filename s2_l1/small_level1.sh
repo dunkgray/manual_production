@@ -3,11 +3,12 @@
 #!/bin/bash
 #PBS -P u46
 #PBS -W umask=017
-#PBS -q normal
-#PBS -l walltime=6:00:00,mem=4GB,jobfs=50GB,other=pernodejobfs
+#PBS -q express
+#PBS -l walltime=0:05:00,mem=1GB,jobfs=1GB,other=pernodejobfs
 #PBS -l wd
 #PBS -l storage=gdata/v10+scratch/v10+gdata/if87+gdata/fj7+scratch/fj7+scratch/u46+gdata/u46
-#PBS -l ncpus=1 # This value should be $END-$START+1
+#PBS -l ncpus=1
+# ncpus should be $END-$START+1
 
 
 loc=$PWD
