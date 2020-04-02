@@ -16,6 +16,18 @@ if [ "$END" = "2019-12-32" ]; then
     END=2020-01-01
 fi
 
+if [ "$END" = "2020-01-32" ]; then
+    END=2020-02-01
+fi
+
+if [ "$END" = "2020-02-30" ]; then
+    END=2020-03-01
+fi
+
+if [ "$END" = "2020-03-32" ]; then
+    END=2020-04-01
+fi
+
 echo $START $END
 echo $INPUT_DIR $OUTPUT_DIR
 s2-nci-processing generate-level1 --level1-root "$INPUT_DIR" --copy-parent-dir-count 1 --output-dir  "$OUTPUT_DIR" --start-date $START  --end-date $END
