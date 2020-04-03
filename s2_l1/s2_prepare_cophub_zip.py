@@ -84,6 +84,15 @@ except ImportError:
     )
     raise
 
+def sha1sum(filename):
+    h  = hashlib.sha1()
+    b  = bytearray(128*1024)
+    mv = memoryview(b)
+    with open(filename, 'rb', buffering=0) as f:
+        for n in iter(lambda : f.readinto(mv), 0):
+            h.update(mv[:n])
+    return h.hexdigest()
+
 os.environ["CPL_ZIP_ENCODING"] = "UTF-8"
 
 ESA_UUID_NAMESPACE = uuid.UUID("5138b9d8-ecd9-41f7-8602-3a295daeeee4")
@@ -200,7 +209,9 @@ def prepare_dataset(path):
     Returns yaml content based on content found at input file path
     """
     if path.suffix == ".zip":
+        logging.info('prepare_dataset .zip')
         z = zipfile.ZipFile(str(path))
+        logging.info('read the zip')
         # find the auxilliary metadata
         datastrip_auxilliary = [s for s in z.namelist() if "DATASTRIP" in s]
         for i in datastrip_auxilliary:
@@ -214,22 +225,30 @@ def prepare_dataset(path):
             xmlzipfiles = [s for s in z.namelist() if pattern in s]
         mtd_xml = z.read(xmlzipfiles[0])
         root = ElementTree.XML(mtd_xml)
+        logging.info('got the root the path is ' + str(path))
+        checksum_sha1 = sha1sum(str(path))
+        # This is crashing when memory allocation is low
         checksum_sha1 = hashlib.sha1(open(str(path), "rb").read()).hexdigest()
+        logging.info('got the checksum ' + str(checksum_sha1))
         size_bytes = os.path.getsize(str(path))
+        logging.info('got size bytes')
     else:
         root = ElementTree.parse(str(path)).getroot()
     product_start_time = root.findall("./*/Product_Info/PRODUCT_START_TIME")[0].text
     product_stop_time = root.findall("./*/Product_Info/PRODUCT_STOP_TIME")[0].text
+    logging.info('started root.findall') # logging.info('')
     # Looks like sometimes the stop time is before the start time....maybe just set them to be the same
     start_time = datetime.strptime(product_start_time, "%Y-%m-%dT%H:%M:%S.%fZ")
     stop_time = datetime.strptime(product_stop_time, "%Y-%m-%dT%H:%M:%S.%fZ")
     if start_time > stop_time:
+        logging.info('in a conditional')
         dummy = product_stop_time
         product_stop_time = product_start_time
         product_start_time = dummy
     product_uri = Path(root.findall("./*/Product_Info/PRODUCT_URI")[0].text)
     level = root.findall("./*/Product_Info/PROCESSING_LEVEL")[0].text
     product_type = root.findall("./*/Product_Info/PRODUCT_TYPE")[0].text
+    logging.info('product_type')
     processing_baseline = root.findall("./*/Product_Info/PROCESSING_BASELINE")[0].text
     ct_time = root.findall("./*/Product_Info/GENERATION_TIME")[0].text
     datatake_id = root.findall("./*/Product_Info/Datatake")[0].attrib
@@ -238,6 +257,7 @@ def prepare_dataset(path):
     datatake_sensing_start = root.findall("./*/Product_Info/*/DATATAKE_SENSING_START")[
         0
     ].text
+    logging.info('defined datatake_sensing_start ')
     orbit = root.findall("./*/Product_Info/*/SENSING_ORBIT_NUMBER")[0].text
     orbit_direction = root.findall("./*/Product_Info/*/SENSING_ORBIT_DIRECTION")[0].text
     product_format = root.findall("./*/Product_Info/*/PRODUCT_FORMAT")[0].text
@@ -268,6 +288,8 @@ def prepare_dataset(path):
             0
         ].text
     )
+    
+    logging.info('done degraded_msi_data_percentage')
     try:
         qa_inspections_offset = "./*/Quality_Control_Checks/Quality_Inspections"
         sensor_quality_flag = root.findall(
@@ -301,6 +323,8 @@ def prepare_dataset(path):
             "./*/Product_Info/Product_Organisation/Granule_List/Granules"
         )
     }
+    
+    logging.info('got granules')
     if not granules:
         single_granule_archive = True
         granules = {
@@ -325,6 +349,8 @@ def prepare_dataset(path):
             single_granule_archive = False
     documents = []
     for granule_id, images in granules.items():
+        
+        logging.info('granule_id ' + granule_id)
         images_ten_list = []
         images_twenty_list = []
         images_sixty_list = []
@@ -390,6 +416,7 @@ def prepare_dataset(path):
             root.findall("./*/Tile_Angles/Mean_Sun_Angle/AZIMUTH_ANGLE")[0].text
         )
         viewing_zenith_azimuth_angle = []
+        logging.info('viewing_zenith_azimuth_angle')
         for viewing_incidence in root.iter("Mean_Viewing_Incidence_Angle"):
             view_incidence = viewing_incidence.attrib
             zenith_value = float(viewing_incidence.find("ZENITH_ANGLE").text)
@@ -535,6 +562,9 @@ def _process_datasets(
         (mode, ino, dev, nlink, uid, gid, size, atime, mtime, ctime) = os.stat(
             str(dataset_path)
         )
+        
+        logging.info('just started the datasets loop')
+        print ('print just started the datasets loop')
         create_date = datetime.utcfromtimestamp(ctime)
         if create_date <= newer_than:
             logging.info(
@@ -575,6 +605,7 @@ def _process_datasets(
                     else:
                         logging.info("Dataset preparation already done...SKIPPING")
                         continue
+            logging.debug('about to prepare_dataset')
             documents = prepare_dataset(dataset_path)
             if documents:
                 logging.info("Writing %s dataset(s) into %s", len(documents), yaml_path)
