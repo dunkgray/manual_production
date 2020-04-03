@@ -19,7 +19,8 @@ from dateutil.parser import parse as date_parser
 
 from wagl.acquisition import acquisitions
 from tesp.workflow import Package
-from eodatasets.prepare.s2_prepare_cophub_zip import _process_datasets
+#from eodatasets.prepare.s2_prepare_cophub_zip import _process_datasets
+from s2_prepare_cophub_zip import _process_datasets
 
 
 DEFAULT_S2_AOI = '/g/data/v10/eoancillarydata/S2_extent/S2_aoi.csv'
