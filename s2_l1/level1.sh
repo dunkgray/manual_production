@@ -30,5 +30,5 @@ fi
 
 echo $START $END
 echo $INPUT_DIR $OUTPUT_DIR
-s2-nci-processing generate-level1 --level1-root "$INPUT_DIR" --copy-parent-dir-count 1 --output-dir  "$OUTPUT_DIR" --start-date $START  --end-date $END
-env
+s2-nci-processing generate-level1 --level1-root "$INPUT_DIR" --copy-parent-dir-count 1 --output-dir  "$OUTPUT_DIR" --start-date "$START"  --end-date "$END"
+
