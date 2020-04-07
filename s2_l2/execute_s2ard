@@ -1,0 +1,154 @@
+#!/bin/bash
+
+# Finds files to process based on last modified time (polling for new files)
+# Calculates a range from FILE_MOD_[START,END,START_OFFSET] and DAYS_TO_PROCESS
+
+set -eu
+
+FILE_MOD_END=""
+FILE_MOD_START_OFFSET=""
+WAGL_VERSION='5.3.1-gadi'
+
+# This is passed in...
+# PBS submit logs are stored in RUN_DIR
+# Default value
+RUN_DIR='/g/data/v10/work/s2_ard/pbs/'
+
+# Default value
+# WAGL logs are stored in this directory
+LOG_DIR='/g/data/v10/work/s2_ard/wagl'
+
+# Default value
+# WAGL partial and run intermediary state is stored in this location
+WORK_DIR='/g/data/if87/workdir'
+
+# Defines PBS resources required to run the find command
+FIND_RESOURCES='walltime=48:00:00,mem=10GB,ncpus=1,storage=gdata/v10+scratch/v10+gdata/if87+gdata/fj7+scratch/fj7+scratch/u46+gdata/u46'
+
+while [[ $# -gt 0 ]]; do
+    key="$1"
+    case ${key} in
+        --task )                    shift
+                                    S2TASK="$1"
+                                    ;;
+        --level1-dir )              shift
+                                    INPUT_DIR="$1"
+                                    ;;
+        --output-dir )              shift
+                                    OUTPUT_DIR="$1"
+				                            ;;
+        --workdir )                 shift
+                                    WORK_DIR="$1"
+				                            ;;
+        --logdir )                  shift
+                                    LOG_DIR="$1"
+                                    ;;
+        --copy-parent-dir-count )   shift
+                                    COPY_PARENT_DIR_COUNT="$1"
+                                    ;;
+        --file-mod-start )          shift
+                                    FILE_MOD_START="$1"
+                                    ;;
+        --file-mod-end )            shift
+                                    FILE_MOD_END="$1"
+                                    ;;
+        --file-mod-start-offset )   shift
+                                    FILE_MOD_START_OFFSET="$1"
+                                    ;;
+        --days-to-process )         shift
+                                    DAYS_TO_PROCESS="$1"
+                                    ;;
+        --project )                 shift
+                                    PROJECT="$1"
+                                    ;;
+        --rundir )                   shift
+                                    RUN_DIR="$1"
+                                    ;;
+        --env )                     shift
+                                    ENV="$1"
+                                    ;;
+        * )                         shift
+                                    echo "$key|$1 Too many params"
+                                    exit 1
+                                    ;;
+    esac
+    shift
+done
+
+# IF START DATE OFFSET IS DEFINED SHIFT START DATE BACK
+if [[ -n "$FILE_MOD_START_OFFSET" ]]; then
+    FILE_MOD_START="$(date -d"$FILE_MOD_START - $FILE_MOD_START_OFFSET days" +"%Y-%m-%d")"
+fi
+
+# SET FILE_MOD_END BASED ON DAYS TO PROCESS IF NOT SET
+if [[ -z "$FILE_MOD_END" ]]; then
+    FILE_MOD_END="$(date -d"$FILE_MOD_START + $DAYS_TO_PROCESS days" +"%Y-%m-%d")"
+fi
+
+echo "Loading module wagl module"
+
+module use /g/data/v10/public/modules/modulefiles
+module use /g/data/v10/private/modules/modulefiles
+
+umask 0022
+
+module load "wagl/${WAGL_VERSION}"
+
+if [[ -z "$ENV" ]]; then
+    # if $ENV is unset or set to an empty string
+    ENV="${WAGL_CFG_ROOT}/${WAGL_VERSION}/Sentinel-2/definitive.env"
+fi
+
+# This needs to be updated
+# "${WAGL_CFG_ROOT}/${WAGL_VERSION}/Sentinel-2/definitive.env"
+
+case "$S2TASK" in
+    "level1"    )
+        cd "$RUN_DIR"
+        echo "Submitting PBS job to create level 1 yaml files: ${OUTPUT_DIR}"
+        qsub -V -N "S2-L1-YAML-$FILE_MOD_START-$FILE_MOD_END" \
+             -W umask=33 \
+             -q normal \
+             -l "$FIND_RESOURCES" \
+             -P "$PROJECT" \
+             -- s2-nci-processing generate-level1 \
+             --level1-root "$INPUT_DIR" \
+             --copy-parent-dir-count "$COPY_PARENT_DIR_COUNT" \
+             --output-dir "$OUTPUT_DIR" \
+		 --queue normal \
+             --start-date "$FILE_MOD_START" \
+             --end-date "$FILE_MOD_END"
+        ;;
+    "level2"    )
+        cd "$RUN_DIR"
+	    echo env $ENV
+        echo "Submitting PBS job to process to level 2: ${OUTPUT_DIR}"
+        qsub -V -N "S2-L2-ARD-${FILE_MOD_START}_${FILE_MOD_END}" \
+             -W umask=33 \
+             -q normal \
+             -l "$FIND_RESOURCES" \
+             -P "$PROJECT" \
+             -- s2-nci-processing process-level2 \
+             --level1-root "$INPUT_DIR" \
+             --pkgdir "$OUTPUT_DIR" \
+             --logdir "$LOG_DIR" \
+             --workdir "$WORK_DIR" \
+             --start-date "$FILE_MOD_START" \
+             --end-date "$FILE_MOD_END" \
+             --env "$ENV" \
+		 --queue normal \
+             --project "$PROJECT" \
+		 --memory 192 \
+		 --queue normal
+        ;;
+    "test"    )
+	echo "S2-L2-ARD-${FILE_MOD_START}_${FILE_MOD_END}" \
+	     "$INPUT_DIR"  "$OUTPUT_DIR" \
+	     "$FILE_MOD_START" "$FILE_MOD_END" \
+	     "$LOG_DIR" "$FIND_RESOURCES" "$PROJECT" 
+        ;;
+    "*"        )
+        echo "TASK '$S2TASK' not recognised"
+        exit 1
+        ;;
+esac
