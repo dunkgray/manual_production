@@ -16,7 +16,7 @@ TEST=true
 
 if [ "$TEST" = true ] ; then
   echo 'Using test directories'
-  S2L1DIR='/g/data/fj7/Copernicus/Sentinel-2/MSI/L1C/2020/2020-02/75S165E-80S170E/'
+  S2L1DIR='/g/data/fj7/Copernicus/Sentinel-2/MSI/L1C/2019/2019-11/20S125E-25S130E/'
   LOGDIR=$loc/logdir/
   RUNDIR=$LOGDIR
   WORKDIR=$loc/workdir/
@@ -32,9 +32,12 @@ fi
     --logdir $LOGDIR \
     --output-dir $OUTPUT \
     --copy-parent-dir-count 1 \
-    --file-mod-start  2020-02-22 \
-    --file-mod-end  2020-02-23 \
+    --file-mod-start 2019-11-04  \
+    --file-mod-end 2019-11-05  \
     --task level2 \
     --rundir $RUNDIR \
-    --env  $ENV\
+    --env  $ENV
+echo log directory $LOGDIR
+echo output directory  $OUTPUT
+echo input directory  $S2L1DIR
 
