@@ -16,7 +16,7 @@ ENV=$loc/definitive.env
     --output-dir $OUTPUT \
     --copy-parent-dir-count 1 \
     --file-mod-start  2019-12-13 \
-    --file-mod-end  2019-12-21 \
+    --file-mod-end  2019-12-20 \
     --task level2 \
     --rundir $RUNDIR \
     --env  $ENV
